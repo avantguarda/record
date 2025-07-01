@@ -1,15 +1,16 @@
 [project]
-name = "rec"
+name = "record"
 version = "0.1.0"
 description = "Track your time, right in your terminal. It just works."
 readme = "README.md"
 requires-python = ">=3.13"
+
 dependencies = [
     "arrow>=1.0.0",
     "click>=8.0",
     "click-didyoumean>=0.3.1",
     "colorama>=0.4.6 ; sys_platform == 'win32'",
-    "requests>=2.32.4",
+    "requests>=2.32.4"
 ]
 
 [dependency-groups]
@@ -24,5 +25,12 @@ dev = [
     "pytest-runner>=6.0.1",
     "tox>=4.27.0",
     "twine>=6.1.0",
-    "wheel>=0.45.1",
+    "wheel>=0.45.1"
 ]
+
+[project.scripts]
+rec = "record.__main__:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
