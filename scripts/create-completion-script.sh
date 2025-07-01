@@ -10,7 +10,7 @@ Usage: $0 shell-type
 This script generates the auto completion receipt required by Bash or Zsh.
 Since the generated receipt is only a wrapper around the click framework, this
 results in correct tab completion, regardless of the currently used version
-watson.
+record.
 
 The argument shell-type must be either "bash" or "zsh".
 EOF
@@ -30,15 +30,15 @@ case $1 in
     ;;
   bash)
     src_command="source"
-    target_file="watson.completion"
+    target_file="record.completion"
     ;;
   zsh)
     src_command="source_zsh"
-    target_file="watson.zsh-completion"
+    target_file="record.zsh-completion"
     ;;
   *)
     echo "Unknown argument '$1'. Please consult help text." >&2
     exit 1
 esac
 
-_WATSON_COMPLETE=$src_command watson > "$target_file" || true
+_RECORD_COMPLETE=$src_command record > "$target_file" || true

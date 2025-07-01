@@ -14,7 +14,7 @@ import pytest
 from click.exceptions import Abort
 from dateutil.tz import tzutc
 
-from watson.utils import (
+from record.utils import (
     apply_weekday_offset,
     build_csv,
     confirm_project,
@@ -189,44 +189,44 @@ def test_parse_tags(args, parsed_tags):
 
 def test_confirm_project_existing_project_returns_true():
     project = 'foo'
-    watson_projects = ['foo', 'bar']
-    assert confirm_project(project, watson_projects)
+    record_projects = ['foo', 'bar']
+    assert confirm_project(project, record_projects)
 
 
 @patch('click.confirm', return_value=True)
 def test_confirm_project_accept_returns_true(confirm):
     project = 'baz'
-    watson_projects = ['foo', 'bar']
-    assert confirm_project(project, watson_projects)
+    record_projects = ['foo', 'bar']
+    assert confirm_project(project, record_projects)
 
 
-@patch('watson.utils.click.confirm', side_effect=Abort)
+@patch('record.utils.click.confirm', side_effect=Abort)
 def test_confirm_project_reject_raises_abort(confirm):
     project = 'baz'
-    watson_projects = ['foo', 'bar']
+    record_projects = ['foo', 'bar']
     with pytest.raises(Abort):
-        confirm_project(project, watson_projects)
+        confirm_project(project, record_projects)
 
 
 def test_confirm_tags_existing_tag_returns_true():
     tags = ['a']
-    watson_tags = ['a', 'b']
-    assert confirm_tags(tags, watson_tags)
+    record_tags = ['a', 'b']
+    assert confirm_tags(tags, record_tags)
 
 
 @patch('click.confirm', return_value=True)
 def test_confirm_tags_accept_returns_true(confirm):
     tags = ['c']
-    watson_tags = ['a', 'b']
-    assert confirm_tags(tags, watson_tags)
+    record_tags = ['a', 'b']
+    assert confirm_tags(tags, record_tags)
 
 
 @patch('click.confirm', side_effect=Abort)
 def test_confirm_tags_reject_raises_abort(confirm):
     tags = ['c']
-    watson_tags = ['a', 'b']
+    record_tags = ['a', 'b']
     with pytest.raises(Abort):
-        confirm_project(tags[0], watson_tags)
+        confirm_project(tags[0], record_tags)
 
 
 # build_csv
@@ -263,25 +263,25 @@ def test_build_csv_multiple_cols():
 
 # sorted_groupby
 
-def test_sorted_groupby(watson):
+def test_sorted_groupby(record):
     end = arrow.utcnow()
-    watson.add('foo', end.shift(hours=-25), end.shift(hours=-24), ['A'])
-    watson.add('bar', end.shift(hours=-1), end, ['A'])
+    record.add('foo', end.shift(hours=-25), end.shift(hours=-24), ['A'])
+    record.add('bar', end.shift(hours=-1), end, ['A'])
 
     result = list(sorted_groupby(
-        watson.frames,
+        record.frames,
         operator.attrgetter('day'),
         reverse=False))
     assert result[0][0] < result[1][0]
 
 
-def test_sorted_groupby_reverse(watson):
+def test_sorted_groupby_reverse(record):
     end = arrow.utcnow()
-    watson.add('foo', end.shift(hours=-25), end.shift(hours=-24), ['A'])
-    watson.add('bar', end.shift(hours=-1), end, ['A'])
+    record.add('foo', end.shift(hours=-25), end.shift(hours=-24), ['A'])
+    record.add('bar', end.shift(hours=-1), end, ['A'])
 
     result = list(sorted_groupby(
-        watson.frames,
+        record.frames,
         operator.attrgetter('day'),
         reverse=True))
     assert result[0][0] > result[1][0]
@@ -289,15 +289,15 @@ def test_sorted_groupby_reverse(watson):
 
 # frames_to_csv
 
-def test_frames_to_csv_empty_data(watson):
-    assert frames_to_csv(watson.frames) == ''
+def test_frames_to_csv_empty_data(record):
+    assert frames_to_csv(record.frames) == ''
 
 
-def test_frames_to_csv(watson):
-    watson.start('foo', tags=['A', 'B'])
-    watson.stop()
+def test_frames_to_csv(record):
+    record.start('foo', tags=['A', 'B'])
+    record.stop()
 
-    result = frames_to_csv(watson.frames)
+    result = frames_to_csv(record.frames)
 
     read_csv = list(csv.reader(StringIO(result)))
     header = ['id', 'start', 'stop', 'project', 'tags']
@@ -309,15 +309,15 @@ def test_frames_to_csv(watson):
 
 # frames_to_json
 
-def test_frames_to_json_empty_data(watson):
-    assert frames_to_json(watson.frames) == '[]'
+def test_frames_to_json_empty_data(record):
+    assert frames_to_json(record.frames) == '[]'
 
 
-def test_frames_to_json(watson):
-    watson.start('foo', tags=['A', 'B'])
-    watson.stop()
+def test_frames_to_json(record):
+    record.start('foo', tags=['A', 'B'])
+    record.stop()
 
-    result = json.loads(frames_to_json(watson.frames))
+    result = json.loads(frames_to_json(record.frames))
 
     keys = {'id', 'start', 'stop', 'project', 'tags'}
     assert len(result) == 1
@@ -328,15 +328,15 @@ def test_frames_to_json(watson):
 
 # flatten_report_for_csv
 
-def test_flatten_report_for_csv(watson):
+def test_flatten_report_for_csv(record):
     now = arrow.utcnow().ceil('hour')
-    watson.add('foo', now.shift(hours=-4), now, ['A', 'B'])
-    watson.add('foo', now.shift(hours=-5), now.shift(hours=-4), ['A'])
-    watson.add('foo', now.shift(hours=-7), now.shift(hours=-5), ['B'])
+    record.add('foo', now.shift(hours=-4), now, ['A', 'B'])
+    record.add('foo', now.shift(hours=-5), now.shift(hours=-4), ['A'])
+    record.add('foo', now.shift(hours=-7), now.shift(hours=-5), ['B'])
 
     start = now.shift(days=-1)
     stop = now
-    result = flatten_report_for_csv(watson.report(start, stop))
+    result = flatten_report_for_csv(record.report(start, stop))
 
     assert len(result) == 3
 
