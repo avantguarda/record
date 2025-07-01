@@ -11,4 +11,4 @@ After nearly three years of inactivity on the [original project](https://github.
 As a direct fork, `rec` builds upon the brilliant foundation of `watson`. Our goal is to provide the active maintenance, modern enhancements, and long-term support this project deserves. We are deeply grateful to the original contributors for building something worth preserving.
 
 ## License
-Record is released under the MIT License. See [LICENSE](LICENSE) file for details.
+Record is released under the GNU General Public License 3.0, see [LICENSE](LICENSE) file for details.
