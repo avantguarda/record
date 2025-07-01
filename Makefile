@@ -1,4 +1,4 @@
-# Watson
+# Record
 
 PYTHON ?= python
 PIP ?= pip
@@ -6,14 +6,14 @@ PIP ?= pip
 VENV = virtualenv
 VENV_ARGS = -p $(PYTHON)
 VENV_DIR = $(CURDIR)/.venv
-VENV_WATSON_DIR = $(CURDIR)/data
+VENV_RECORD_DIR = $(CURDIR)/data
 
 all: install
 
 $(VENV_DIR): requirements-dev.txt
 	$(VENV) $(VENV_ARGS) "$(VENV_DIR)"
-	echo "export WATSON_DIR=\"$(VENV_WATSON_DIR)\"" >> "$(VENV_DIR)"/bin/activate
-	echo "set -x WATSON_DIR \"$(VENV_WATSON_DIR)\"" >> "$(VENV_DIR)"/bin/activate.fish
+	echo "export RECORD_DIR=\"$(VENV_RECORD_DIR)\"" >> "$(VENV_DIR)"/bin/activate
+	echo "set -x RECORD_DIR \"$(VENV_RECORD_DIR)\"" >> "$(VENV_DIR)"/bin/activate.fish
 	"$(VENV_DIR)"/bin/pip install -U setuptools wheel pip
 	"$(VENV_DIR)"/bin/pip install -Ur $<
 

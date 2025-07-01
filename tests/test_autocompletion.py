@@ -5,7 +5,7 @@ from argparse import Namespace
 
 import pytest
 
-from watson.autocompletion import (
+from record.autocompletion import (
     get_frames,
     get_project_or_task_completion,
     get_projects,
@@ -43,9 +43,9 @@ ClickContext = Namespace
     ],
 )
 def test_if_returned_values_are_distinct(
-    watson_df, func_to_test, rename_type, args
+    record_df, func_to_test, rename_type, args
 ):
-    ctx = ClickContext(obj=watson_df, params={"rename_type": rename_type})
+    ctx = ClickContext(obj=record_df, params={"rename_type": rename_type})
     prefix = ""
     ret_list = list(func_to_test(ctx, args, prefix))
     assert sorted(ret_list) == sorted(set(ret_list))
@@ -66,10 +66,10 @@ def test_if_returned_values_are_distinct(
     ],
 )
 def test_if_empty_prefix_returns_everything(
-    watson_df, func_to_test, n_expected_returns, rename_type, args
+    record_df, func_to_test, n_expected_returns, rename_type, args
 ):
     prefix = ""
-    ctx = ClickContext(obj=watson_df, params={"rename_type": rename_type})
+    ctx = ClickContext(obj=record_df, params={"rename_type": rename_type})
     completed_vals = set(func_to_test(ctx, args, prefix))
     assert len(completed_vals) == n_expected_returns
 
@@ -90,9 +90,9 @@ def test_if_empty_prefix_returns_everything(
     ],
 )
 def test_completion_of_nonexisting_prefix(
-    watson_df, func_to_test, rename_type, args
+    record_df, func_to_test, rename_type, args
 ):
-    ctx = ClickContext(obj=watson_df, params={"rename_type": rename_type})
+    ctx = ClickContext(obj=record_df, params={"rename_type": rename_type})
     prefix = "NOT-EXISTING-PREFIX"
     ret_list = list(func_to_test(ctx, args, prefix))
     assert not ret_list
@@ -126,9 +126,9 @@ def test_completion_of_nonexisting_prefix(
     ],
 )
 def test_completion_of_existing_prefix(
-    watson_df, func_to_test, prefix, n_expected_vals, rename_type, args
+    record_df, func_to_test, prefix, n_expected_vals, rename_type, args
 ):
-    ctx = ClickContext(obj=watson_df, params={"rename_type": rename_type})
+    ctx = ClickContext(obj=record_df, params={"rename_type": rename_type})
     ret_set = set(func_to_test(ctx, args, prefix))
     assert len(ret_set) == n_expected_vals
     assert all(cur_elem.startswith(prefix) for cur_elem in ret_set)

@@ -1,15 +1,15 @@
-#compdef watson
+#compdef record
 
-_watson_completion() {
+_record_completion() {
     local -a completions
     local -a completions_with_descriptions
     local -a response
-    (( ! $+commands[watson] )) && return 1
+    (( ! $+commands[record] )) && return 1
 
     response=("${(@f)$( env COMP_WORDS="${words[*]}" \
                         COMP_CWORD=$((CURRENT-1)) \
-                        _WATSON_COMPLETE="complete_zsh" \
-                        watson )}")
+                        _RECORD_COMPLETE="complete_zsh" \
+                        record )}")
 
     for key descr in ${(kv)response}; do
       if [[ "$descr" == "_" ]]; then
@@ -29,4 +29,4 @@ _watson_completion() {
     compstate[insert]="automenu"
 }
 
-compdef _watson_completion watson;
+compdef _record_completion record;

@@ -10,7 +10,7 @@ import arrow
 import click
 from click_didyoumean import DYMGroup
 
-import watson as _watson
+import record as _record
 from .autocompletion import (
     get_frames,
     get_project_or_task_completion,
@@ -25,7 +25,7 @@ from .utils import (
     build_csv,
     confirm_project,
     confirm_tags,
-    create_watson,
+    create_record,
     flatten_report_for_csv,
     format_timedelta,
     frames_to_csv,
@@ -129,26 +129,26 @@ class DateTimeParamType(click.ParamType):
 DateTime = DateTimeParamType()
 
 
-def catch_watson_error(func):
+def catch_record_error(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except _watson.WatsonError as e:
+        except _record.RecordError as e:
             raise click.ClickException(style('error', str(e)))
     return wrapper
 
 
 @click.group(cls=DYMGroup)
-@click.version_option(version=_watson.__version__, prog_name='Watson')
+@click.version_option(version=_record.__version__, prog_name='Record')
 @click.option('--color/--no-color', 'color', default=None,
               help="(Don't) color output.")
 @click.pass_context
 def cli(ctx, color):
     """
-    Watson is a tool aimed at helping you monitoring your time.
+    Record is a tool aimed at helping you monitoring your time.
 
-    You just have to tell Watson when you start working on your
+    You just have to tell Record when you start working on your
     project with the `start` command, and you can stop the timer
     when you're done with the `stop` command.
     """
@@ -158,7 +158,7 @@ def cli(ctx, color):
 
     # This is the main command group, needed by click in order
     # to handle the subcommands
-    ctx.obj = create_watson()
+    ctx.obj = create_record()
 
 
 @cli.command()
@@ -180,18 +180,18 @@ def help(ctx, command):
     click.echo(cmd.get_help(ctx))
 
 
-def _start(watson, project, tags, restart=False, start_at=None, gap=True):
+def _start(record, project, tags, restart=False, start_at=None, gap=True):
     """
     Start project with given list of tags and save status.
     """
-    current = watson.start(project, tags, restart=restart, start_at=start_at,
+    current = record.start(project, tags, restart=restart, start_at=start_at,
                            gap=gap,)
     click.echo("Starting project {}{} at {}".format(
         style('project', project),
         (" " if current['tags'] else "") + style('tags', current['tags']),
         style('time', "{:HH:mm}".format(current['start']))
     ))
-    watson.save()
+    record.save()
 
 
 @cli.command()
@@ -211,8 +211,8 @@ def _start(watson, project, tags, restart=False, start_at=None, gap=True):
               help="Confirm creation of new tag.")
 @click.pass_obj
 @click.pass_context
-@catch_watson_error
-def start(ctx, watson, confirm_new_project, confirm_new_tag, args, at_,
+@catch_record_error
+def start(ctx, record, confirm_new_project, confirm_new_tag, args, at_,
           gap_=True):
     """
     Start monitoring time for the given project.
@@ -231,7 +231,7 @@ def start(ctx, watson, confirm_new_project, confirm_new_tag, args, at_,
     Example:
 
     \b
-    $ watson start --at 13:37
+    $ rec start --at 13:37
     Starting project apollo11 at 13:37
 
     If the `--no-gap` flag is given, the start time of the new project is set
@@ -240,7 +240,7 @@ def start(ctx, watson, confirm_new_project, confirm_new_tag, args, at_,
     Example:
 
     \b
-    $ watson start apollo11 +module +brakes --no-gap
+    $ rec start apollo11 +module +brakes --no-gap
     Starting project apollo11 [module, brakes] at 16:34
     """
     project = ' '.join(
@@ -250,20 +250,20 @@ def start(ctx, watson, confirm_new_project, confirm_new_tag, args, at_,
         raise click.ClickException("No project given.")
 
     # Confirm creation of new project if that option is set
-    if (watson.config.getboolean('options', 'confirm_new_project') or
+    if (record.config.getboolean('options', 'confirm_new_project') or
             confirm_new_project):
-        confirm_project(project, watson.projects)
+        confirm_project(project, record.projects)
 
     # Parse all the tags
     tags = parse_tags(args)
 
     # Confirm creation of new tag(s) if that option is set
-    if (watson.config.getboolean('options', 'confirm_new_tag') or
+    if (record.config.getboolean('options', 'confirm_new_tag') or
             confirm_new_tag):
-        confirm_tags(tags, watson.tags)
+        confirm_tags(tags, record.tags)
 
-    if project and watson.is_started and not gap_:
-        current = watson.current
+    if project and record.is_started and not gap_:
+        current = record.current
         errmsg = ("Project '{}' is already started and '--no-gap' is passed. "
                   "Please stop manually.")
         raise click.ClickException(
@@ -272,11 +272,11 @@ def start(ctx, watson, confirm_new_project, confirm_new_tag, args, at_,
             )
         )
 
-    if (project and watson.is_started and
-            watson.config.getboolean('options', 'stop_on_start')):
+    if (project and record.is_started and
+            record.config.getboolean('options', 'stop_on_start')):
         ctx.invoke(stop, at_=at_)
 
-    _start(watson, project, tags, start_at=at_, gap=gap_)
+    _start(record, project, tags, start_at=at_, gap=gap_)
 
 
 @cli.command(context_settings={'ignore_unknown_options': True})
@@ -284,8 +284,8 @@ def start(ctx, watson, confirm_new_project, confirm_new_tag, args, at_,
               help=('Stop frame at this time. Must be in '
                     '(YYYY-MM-DDT)?HH:MM(:SS)? format.'))
 @click.pass_obj
-@catch_watson_error
-def stop(watson, at_):
+@catch_record_error
+def stop(record, at_):
     """
     Stop monitoring time for the current project.
 
@@ -296,10 +296,10 @@ def stop(watson, at_):
     Example:
 
     \b
-    $ watson stop --at 13:37
+    $ rec stop --at 13:37
     Stopping project apollo11, started an hour ago and stopped 30 minutes ago. (id: e9ccd52) # noqa: E501
     """
-    frame = watson.stop(stop_at=at_)
+    frame = record.stop(stop_at=at_)
     output_str = "Stopping project {}{}, started {} and stopped {}. (id: {})"
     click.echo(output_str.format(
         style('project', frame.project),
@@ -308,7 +308,7 @@ def stop(watson, at_):
         style('time', frame.stop.humanize()),
         style('short_id', frame.id),
     ))
-    watson.save()
+    record.save()
 
 
 @cli.command(context_settings={'ignore_unknown_options': True})
@@ -325,8 +325,8 @@ def stop(watson, at_):
 @click.argument('id', default='-1', shell_complete=get_frames)
 @click.pass_obj
 @click.pass_context
-@catch_watson_error
-def restart(ctx, watson, id, stop_, at_, gap_=True):
+@catch_record_error
+def restart(ctx, record, id, stop_, at_, gap_=True):
     """
     Restart monitoring time for a previously stopped project.
 
@@ -335,7 +335,7 @@ def restart(ctx, watson, id, stop_, at_, gap_=True):
     the frame to use with an integer frame index argument or a frame ID. For
     example, to restart the second-to-last frame, pass `-2` as the frame index.
 
-    Normally, if a project is currently started, Watson will print an error and
+    Normally, if a project is currently started, Record will print an error and
     do nothing. If you set the configuration option `options.stop_on_restart`
     to a true value (`1`, `on`, `true`, or `yes`), the current project, if any,
     will be stopped before the new frame is started. You can pass the option
@@ -348,23 +348,23 @@ def restart(ctx, watson, id, stop_, at_, gap_=True):
     Example:
 
     \b
-    $ watson start apollo11 +module +brakes
+    $ rec start apollo11 +module +brakes
     Starting project apollo11 [module, brakes] at 16:34
-    $ watson stop
+    $ rec stop
     Stopping project apollo11, started a minute ago. (id: e7ccd52)
-    $ watson restart
+    $ rec restart
     Starting project apollo11 [module, brakes] at 16:36
 
     If the `--no-gap` flag is given, the start time of the new project is set
     to the stop time of the most recently stopped project.
     """
-    if not watson.frames and not watson.is_started:
+    if not record.frames and not record.is_started:
         raise click.ClickException(
             style('error', "No frames recorded yet. It's time to create your "
                            "first one!"))
 
-    if watson.is_started and not gap_:
-        current = watson.current
+    if record.is_started and not gap_:
+        current = record.current
         errmsg = ("Project '{}' is already started and '--no-gap' is passed. "
                   "Please stop manually.")
         raise click.ClickException(
@@ -373,38 +373,38 @@ def restart(ctx, watson, id, stop_, at_, gap_=True):
             )
         )
 
-    if watson.is_started:
+    if record.is_started:
         if stop_ or (stop_ is None and
-                     watson.config.getboolean('options', 'stop_on_restart')):
+                     record.config.getboolean('options', 'stop_on_restart')):
             ctx.invoke(stop)
         else:
-            # Raise error here, instead of in watson.start(), otherwise
+            # Raise error here, instead of in record.start(), otherwise
             # will give misleading error if running frame is the first one
             raise click.ClickException("{} {} {}".format(
                 style('error', "Project already started:"),
-                style('project', watson.current['project']),
-                style('tags', watson.current['tags'])))
+                style('project', record.current['project']),
+                style('tags', record.current['tags'])))
 
-    frame = get_frame_from_argument(watson, id)
+    frame = get_frame_from_argument(record, id)
 
-    _start(watson, frame.project, frame.tags, restart=True, start_at=at_,
+    _start(record, frame.project, frame.tags, restart=True, start_at=at_,
            gap=gap_)
 
 
 @cli.command()
 @click.pass_obj
-@catch_watson_error
-def cancel(watson):
+@catch_record_error
+def cancel(record):
     """
     Cancel the last call to the start command. The time will
     not be recorded.
     """
-    old = watson.cancel()
+    old = record.cancel()
     click.echo("Canceling the timer for project {}{}".format(
         style('project', old['project']),
         (" " if old['tags'] else "") + style('tags', old['tags'])
     ))
-    watson.save()
+    record.save()
 
 
 @cli.command()
@@ -415,8 +415,8 @@ def cancel(watson):
 @click.option('-e', '--elapsed', is_flag=True,
               help="only show time elapsed")
 @click.pass_obj
-@catch_watson_error
-def status(watson, project, tags, elapsed):
+@catch_record_error
+def status(record, project, tags, elapsed):
     """
     Display when the current project was started and the time spent since.
 
@@ -429,18 +429,18 @@ def status(watson, project, tags, elapsed):
     Example:
 
     \b
-    $ watson status
+    $ rec status
     Project apollo11 [brakes] started seconds ago (2014-05-19 14:32:41+0100)
-    $ watson config options.date_format %d.%m.%Y
-    $ watson config options.time_format "at %I:%M %p"
-    $ watson status
+    $ rec config options.date_format %d.%m.%Y
+    $ rec config options.time_format "at %I:%M %p"
+    $ rec status
     Project apollo11 [brakes] started a minute ago (19.05.2014 at 02:32 PM)
     """
-    if not watson.is_started:
+    if not record.is_started:
         click.echo("No project started.")
         return
 
-    current = watson.current
+    current = record.current
 
     if project:
         click.echo("{}".format(
@@ -460,8 +460,8 @@ def status(watson, project, tags, elapsed):
         ))
         return
 
-    datefmt = watson.config.get('options', 'date_format', '%Y.%m.%d')
-    timefmt = watson.config.get('options', 'time_format', '%H:%M:%S%z')
+    datefmt = record.config.get('options', 'date_format', '%Y.%m.%d')
+    timefmt = record.config.get('options', 'time_format', '%H:%M:%S%z')
     click.echo("Project {}{} started {} ({} {})".format(
         style('project', current['project']),
         (" " if current['tags'] else "") + style('tags', current['tags']),
@@ -543,8 +543,8 @@ _SHORTCUT_OPTIONS_VALUES = {
 @click.option('-g/-G', '--pager/--no-pager', 'pager', default=None,
               help="(Don't) view output through a pager.")
 @click.pass_obj
-@catch_watson_error
-def report(watson, current, from_, to, projects, tags, ignore_projects,
+@catch_record_error
+def report(record, current, from_, to, projects, tags, ignore_projects,
            ignore_tags, year, month, week, day, luna, all, output_format,
            pager, aggregated=False, include_partial_frames=True):
     """
@@ -579,7 +579,7 @@ def report(watson, current, from_, to, projects, tags, ignore_projects,
     Example:
 
     \b
-    $ watson report
+    $ rec report
     Mon 05 May 2014 -> Mon 12 May 2014
     \b
     apollo11 - 13h 22m 20s
@@ -608,7 +608,7 @@ def report(watson, current, from_, to, projects, tags, ignore_projects,
     \b
     Total: 43h 42m 20s
     \b
-    $ watson report --from 2014-04-01 --to 2014-04-30 --project apollo11
+    $ rec report --from 2014-04-01 --to 2014-04-30 --project apollo11
     Tue 01 April 2014 -> Wed 30 April 2014
     \b
     apollo11 - 13h 22m 20s
@@ -618,11 +618,11 @@ def report(watson, current, from_, to, projects, tags, ignore_projects,
             [steering 10h 33m 37s]
             [wheels   10h 11m 35s]
     \b
-    $ watson report --json
+    $ rec report --json
     {
         "projects": [
             {
-                "name": "watson",
+                "name": "record",
                 "tags": [
                     {
                         "name": "export",
@@ -643,7 +643,7 @@ def report(watson, current, from_, to, projects, tags, ignore_projects,
         }
     }
     \b
-    $ watson report --from 2014-04-01 --to 2014-04-30 --project apollo11 --csv
+    $ rec report --from 2014-04-01 --to 2014-04-30 --project apollo11 --csv
     from,to,project,tag,time
     2014-04-01 00:00:00,2014-04-30 23:59:59,apollo11,,48140.0
     2014-04-01 00:00:00,2014-04-30 23:59:59,apollo11,brakes,28421.0
@@ -660,7 +660,7 @@ def report(watson, current, from_, to, projects, tags, ignore_projects,
     else:
         tab = ''
 
-    report = watson.report(from_, to, current, projects, tags,
+    report = record.report(from_, to, current, projects, tags,
                            ignore_projects, ignore_tags,
                            year=year, month=month, week=week, day=day,
                            luna=luna, all=all,
@@ -679,7 +679,7 @@ def report(watson, current, from_, to, projects, tags, ignore_projects,
     lines = []
     # use the pager, or print directly to the terminal
     if pager or (pager is None and
-                 watson.config.getboolean('options', 'pager', True)):
+                 record.config.getboolean('options', 'pager', True)):
 
         def _print(line):
             lines.append(line)
@@ -797,8 +797,8 @@ def report(watson, current, from_, to, projects, tags, ignore_projects,
               help="(Don't) view output through a pager.")
 @click.pass_obj
 @click.pass_context
-@catch_watson_error
-def aggregate(ctx, watson, current, from_, to, projects, tags, output_format,
+@catch_record_error
+def aggregate(ctx, record, current, from_, to, projects, tags, output_format,
               pager):
     """
     Display a report of the time spent on each project aggregated by day.
@@ -825,9 +825,9 @@ def aggregate(ctx, watson, current, from_, to, projects, tags, output_format,
     Example:
 
     \b
-    $ watson aggregate
+    $ rec aggregate
     Wed 14 November 2018 - 5h 42m 22s
-      watson - 5h 42m 22s
+      record - 5h 42m 22s
             [features     34m 06s]
             [docs  5h 08m 16s]
     \b
@@ -840,34 +840,34 @@ def aggregate(ctx, watson, current, from_, to, projects, tags, output_format,
     Sun 18 November 2018 - 00s
     \b
     Mon 19 November 2018 - 5h 58m 52s
-      watson - 5h 58m 52s
+      record - 5h 58m 52s
             [features  1h 12m 03s]
             [docs  4h 46m 49s]
     \b
     Tue 20 November 2018 - 2h 50m 35s
-      watson - 2h 50m 35s
+      record - 2h 50m 35s
             [features     15m 17s]
             [docs  1h 37m 43s]
             [website     57m 35s]
     \b
     Wed 21 November 2018 - 01m 17s
-      watson - 01m 17s
+      record - 01m 17s
             [docs     01m 17s]
     \b
-    $ watson aggregate --csv
+    $ rec aggregate --csv
     from,to,project,tag,time
-    2018-11-14 00:00:00,2018-11-14 23:59:59,watson,,20542.0
-    2018-11-14 00:00:00,2018-11-14 23:59:59,watson,features,2046.0
-    2018-11-14 00:00:00,2018-11-14 23:59:59,watson,docs,18496.0
-    2018-11-19 00:00:00,2018-11-19 23:59:59,watson,,21532.0
-    2018-11-19 00:00:00,2018-11-19 23:59:59,watson,features,4323.0
-    2018-11-19 00:00:00,2018-11-19 23:59:59,watson,docs,17209.0
-    2018-11-20 00:00:00,2018-11-20 23:59:59,watson,,10235.0
-    2018-11-20 00:00:00,2018-11-20 23:59:59,watson,features,917.0
-    2018-11-20 00:00:00,2018-11-20 23:59:59,watson,docs,5863.0
-    2018-11-20 00:00:00,2018-11-20 23:59:59,watson,website,3455.0
-    2018-11-21 00:00:00,2018-11-21 23:59:59,watson,,77.0
-    2018-11-21 00:00:00,2018-11-21 23:59:59,watson,docs,77.0
+    2018-11-14 00:00:00,2018-11-14 23:59:59,record,,20542.0
+    2018-11-14 00:00:00,2018-11-14 23:59:59,record,features,2046.0
+    2018-11-14 00:00:00,2018-11-14 23:59:59,record,docs,18496.0
+    2018-11-19 00:00:00,2018-11-19 23:59:59,record,,21532.0
+    2018-11-19 00:00:00,2018-11-19 23:59:59,record,features,4323.0
+    2018-11-19 00:00:00,2018-11-19 23:59:59,record,docs,17209.0
+    2018-11-20 00:00:00,2018-11-20 23:59:59,record,,10235.0
+    2018-11-20 00:00:00,2018-11-20 23:59:59,record,features,917.0
+    2018-11-20 00:00:00,2018-11-20 23:59:59,record,docs,5863.0
+    2018-11-20 00:00:00,2018-11-20 23:59:59,record,website,3455.0
+    2018-11-21 00:00:00,2018-11-21 23:59:59,record,,77.0
+    2018-11-21 00:00:00,2018-11-21 23:59:59,record,docs,77.0
     """
     delta = (to - from_).days
     lines = []
@@ -899,7 +899,7 @@ def aggregate(ctx, watson, current, from_, to, projects, tags, output_format,
     elif 'csv' in output_format:
         click.echo(build_csv(lines))
     elif pager or (pager is None and
-                   watson.config.getboolean('options', 'pager', True)):
+                   record.config.getboolean('options', 'pager', True)):
         click.echo_via_pager('\n\n'.join(lines))
     else:
         click.echo('\n\n'.join(lines))
@@ -970,8 +970,8 @@ def aggregate(ctx, watson, current, from_, to, projects, tags, output_format,
 @click.option('-g/-G', '--pager/--no-pager', 'pager', default=None,
               help="(Don't) view output through a pager.")
 @click.pass_obj
-@catch_watson_error
-def log(watson, current, reverse, from_, to, projects, tags, ignore_projects,
+@catch_record_error
+def log(record, current, reverse, from_, to, projects, tags, ignore_projects,
         ignore_tags, year, month, week, day, luna, all, output_format, pager):
     """
     Display each recorded session during the given timespan.
@@ -1002,7 +1002,7 @@ def log(watson, current, reverse, from_, to, projects, tags, ignore_projects,
     Example:
 
     \b
-    $ watson log --project voyager2 --project apollo11
+    $ rec log --project voyager2 --project apollo11
     Thursday 08 May 2015 (56m 33s)
             f35bb24  09:26 to 10:22      56m 33s  apollo11  [reactor, brakes, steering, wheels, module]
     \b
@@ -1018,7 +1018,7 @@ def log(watson, current, reverse, from_, to, projects, tags, ignore_projects,
             5590aca  10:51 to 14:47   3h 55m 40s  apollo11
             c32c74e  15:12 to 18:38   3h 25m 34s  voyager2  [probe, generators, sensors, antenna]
     \b
-    $ watson log --from 2014-04-16 --to 2014-04-17
+    $ rec log --from 2014-04-16 --to 2014-04-17
     Thursday 17 April 2014 (4h 19m 13s)
             a96fcde  09:15 to 09:43      28m 11s    hubble  [lens, camera, transmission]
             5e91316  10:19 to 12:59   2h 39m 15s    hubble  [camera, transmission]
@@ -1028,7 +1028,7 @@ def log(watson, current, reverse, from_, to, projects, tags, ignore_projects,
             02cb269  09:53 to 12:43   2h 50m 07s  apollo11  [wheels]
             1070ddb  13:48 to 16:17   2h 29m 11s  voyager1  [antenna, sensors]
     \b
-    $ watson log --from 2014-04-16 --to 2014-04-17 --csv
+    $ rec log --from 2014-04-16 --to 2014-04-17 --csv
     id,start,stop,project,tags
     a96fcde,2014-04-17 09:15,2014-04-17 09:43,hubble,"lens, camera, transmission"
     5e91316,2014-04-17 10:19,2014-04-17 12:59,hubble,"camera, transmission"
@@ -1052,18 +1052,18 @@ def log(watson, current, reverse, from_, to, projects, tags, ignore_projects,
         raise click.ClickException(
             "given tags can't be ignored at the same time")
 
-    if watson.current:
+    if record.current:
         if current or (current is None and
-                       watson.config.getboolean('options', 'log_current')):
-            cur = watson.current
-            watson.frames.add(cur['project'], cur['start'], arrow.utcnow(),
+                       record.config.getboolean('options', 'log_current')):
+            cur = record.current
+            record.frames.add(cur['project'], cur['start'], arrow.utcnow(),
                               cur['tags'], id="current")
 
     if reverse is None:
-        reverse = watson.config.getboolean('options', 'reverse_log', True)
+        reverse = record.config.getboolean('options', 'reverse_log', True)
 
-    span = watson.frames.span(from_, to)
-    filtered_frames = watson.frames.filter(
+    span = record.frames.span(from_, to)
+    filtered_frames = record.frames.filter(
         projects=projects or None, tags=tags or None,
         ignore_projects=ignore_projects or None,
         ignore_tags=ignore_tags or None, span=span
@@ -1086,7 +1086,7 @@ def log(watson, current, reverse, from_, to, projects, tags, ignore_projects,
     lines = []
     # use the pager, or print directly to the terminal
     if pager or (pager is None and
-                 watson.config.getboolean('options', 'pager', True)):
+                 record.config.getboolean('options', 'pager', True)):
 
         def _print(line):
             lines.append(line)
@@ -1139,35 +1139,35 @@ def log(watson, current, reverse, from_, to, projects, tags, ignore_projects,
 
 @cli.command()
 @click.pass_obj
-@catch_watson_error
-def projects(watson):
+@catch_record_error
+def projects(record):
     """
     Display the list of all the existing projects.
 
     Example:
 
     \b
-    $ watson projects
+    $ rec projects
     apollo11
     hubble
     voyager1
     voyager2
     """
-    for project in watson.projects:
+    for project in record.projects:
         click.echo(style('project', project))
 
 
 @cli.command()
 @click.pass_obj
-@catch_watson_error
-def tags(watson):
+@catch_record_error
+def tags(record):
     """
     Display the list of all the tags.
 
     Example:
 
     \b
-    $ watson tags
+    $ rec tags
     antenna
     brakes
     camera
@@ -1181,27 +1181,27 @@ def tags(watson):
     transmission
     wheels
     """
-    for tag in watson.tags:
+    for tag in record.tags:
         click.echo(style('tag', tag))
 
 
 @cli.command()
 @click.pass_obj
-@catch_watson_error
-def frames(watson):
+@catch_record_error
+def frames(record):
     """
     Display the list of all frame IDs.
 
     Example:
 
     \b
-    $ watson frames
+    $ rec frames
     f1c4815
     9d1a989
     8801ec3
     [...]
     """
-    for frame in watson.frames:
+    for frame in record.frames:
         click.echo(style('short_id', frame.id))
 
 
@@ -1217,15 +1217,15 @@ def frames(watson):
 @click.option('-b', '--confirm-new-tag', is_flag=True, default=False,
               help="Confirm creation of new tag.")
 @click.pass_obj
-@catch_watson_error
-def add(watson, args, from_, to, confirm_new_project, confirm_new_tag):
+@catch_record_error
+def add(record, args, from_, to, confirm_new_project, confirm_new_tag):
     """
     Add time to a project with tag(s) that was not tracked live.
 
     Example:
 
     \b
-    $ watson add --from "2018-03-20 12:00:00" --to "2018-03-20 13:00:00" \\
+    $ rec add --from "2018-03-20 12:00:00" --to "2018-03-20 13:00:00" \\
      programming +addfeature
     """
     # parse project name from args
@@ -1236,20 +1236,20 @@ def add(watson, args, from_, to, confirm_new_project, confirm_new_tag):
         raise click.ClickException("No project given.")
 
     # Confirm creation of new project if that option is set
-    if (watson.config.getboolean('options', 'confirm_new_project') or
+    if (record.config.getboolean('options', 'confirm_new_project') or
             confirm_new_project):
-        confirm_project(project, watson.projects)
+        confirm_project(project, record.projects)
 
     # Parse all the tags
     tags = parse_tags(args)
 
     # Confirm creation of new tag(s) if that option is set
-    if (watson.config.getboolean('options', 'confirm_new_tag') or
+    if (record.config.getboolean('options', 'confirm_new_tag') or
             confirm_new_tag):
-        confirm_tags(tags, watson.tags)
+        confirm_tags(tags, record.tags)
 
-    # add a new frame, call watson save to update state files
-    frame = watson.add(project=project, tags=tags, from_date=from_, to_date=to)
+    # add a new frame, call record save to update state files
+    frame = record.add(project=project, tags=tags, from_date=from_, to_date=to)
     click.echo(
         "Adding project {}{}, started {} and stopped {}. (id: {})".format(
             style('project', frame.project),
@@ -1259,7 +1259,7 @@ def add(watson, args, from_, to, confirm_new_project, confirm_new_tag):
             style('short_id', frame.id)
         )
     )
-    watson.save()
+    record.save()
 
 
 @cli.command(context_settings={'ignore_unknown_options': True})
@@ -1269,14 +1269,14 @@ def add(watson, args, from_, to, confirm_new_project, confirm_new_tag):
               help="Confirm creation of new tag.")
 @click.argument('id', required=False, shell_complete=get_frames)
 @click.pass_obj
-@catch_watson_error
-def edit(watson, confirm_new_project, confirm_new_tag, id):
+@catch_record_error
+def edit(record, confirm_new_project, confirm_new_tag, id):
     """
     Edit a frame.
 
     You can specify the frame to edit by its position or by its frame id.
     For example, to edit the second-to-last frame, pass `-2` as the frame
-    index. You can get the id of a frame with the `watson log` command.
+    index. You can get the id of a frame with the `record log` command.
 
     If no id or index is given, the frame defaults to the current frame (or the
     last recorded frame, if no project is currently running).
@@ -1291,13 +1291,13 @@ def edit(watson, confirm_new_project, confirm_new_tag, id):
     local_tz = local_tz_info()
 
     if id:
-        frame = get_frame_from_argument(watson, id)
+        frame = get_frame_from_argument(record, id)
         id = frame.id
-    elif watson.is_started:
-        frame = Frame(watson.current['start'], None, watson.current['project'],
-                      None, watson.current['tags'])
-    elif watson.frames:
-        frame = watson.frames[-1]
+    elif record.is_started:
+        frame = Frame(record.current['start'], None, record.current['project'],
+                      None, record.current['tags'])
+    elif record.frames:
+        frame = record.frames[-1]
         id = frame.id
     else:
         raise click.ClickException(
@@ -1331,21 +1331,21 @@ def edit(watson, confirm_new_project, confirm_new_tag, id):
             data = json.loads(output)
             project = data['project']
             # Confirm creation of new project if that option is set
-            if (watson.config.getboolean('options', 'confirm_new_project') or
+            if (record.config.getboolean('options', 'confirm_new_project') or
                     confirm_new_project):
-                confirm_project(project, watson.projects)
+                confirm_project(project, record.projects)
             tags = data['tags']
             # Confirm creation of new tag(s) if that option is set
-            if (watson.config.getboolean('options', 'confirm_new_tag') or
+            if (record.config.getboolean('options', 'confirm_new_tag') or
                     confirm_new_tag):
-                confirm_tags(tags, watson.tags)
+                confirm_tags(tags, record.tags)
             start = arrow.get(data['start'], datetime_format).replace(
                 tzinfo=local_tz).to('utc')
             stop = arrow.get(data['stop'], datetime_format).replace(
                 tzinfo=local_tz).to('utc') if id else None
             # if start time of the project is not before end time
             #  raise ValueException
-            if not watson.is_started and start > stop:
+            if not record.is_started and start > stop:
                 raise ValueError(
                     "Task cannot end before it starts.")
             if start > arrow.utcnow():
@@ -1372,11 +1372,11 @@ def edit(watson, confirm_new_project, confirm_new_tag, id):
 
     # we reach this when we break out of the while loop above
     if id:
-        watson.frames[id] = (project, start, stop, tags)
+        record.frames[id] = (project, start, stop, tags)
     else:
-        watson.current = dict(start=start, project=project, tags=tags)
+        record.current = dict(start=start, project=project, tags=tags)
 
-    watson.save()
+    record.save()
     click.echo(
         "Edited frame for project {project}{tags}, from {start} to {stop} "
         "({delta})".format(
@@ -1400,13 +1400,13 @@ def edit(watson, confirm_new_project, confirm_new_tag, id):
 @click.option('-f', '--force', is_flag=True,
               help="Don't ask for confirmation.")
 @click.pass_obj
-@catch_watson_error
-def remove(watson, id, force):
+@catch_record_error
+def remove(record, id, force):
     """
     Remove a frame. You can specify the frame either by id or by position
     (ex: `-1` for the last frame).
     """
-    frame = get_frame_from_argument(watson, id)
+    frame = get_frame_from_argument(record, id)
     id = frame.id
 
     if not force:
@@ -1421,9 +1421,9 @@ def remove(watson, id, force):
             abort=True
         )
 
-    del watson.frames[id]
+    del record.frames[id]
 
-    watson.save()
+    record.save()
     click.echo("Frame removed.")
 
 
@@ -1433,7 +1433,7 @@ def remove(watson, id, force):
 @click.option('-e', '--edit', is_flag=True,
               help="Edit the configuration file with an editor.")
 @click.pass_context
-@catch_watson_error
+@catch_record_error
 def config(context, key, value, edit):
     """
     Get and set configuration options.
@@ -1446,16 +1446,16 @@ def config(context, key, value, edit):
     Example:
 
     \b
-    $ watson config backend.token 7e329263e329
-    $ watson config backend.token
+    $ rec config backend.token 7e329263e329
+    $ rec config backend.token
     7e329263e329
     """
-    watson = context.obj
-    wconfig = watson.config
+    record = context.obj
+    wconfig = record.config
 
     if edit:
         try:
-            with open(watson.config_file) as fp:
+            with open(record.config_file) as fp:
                 rawconfig = fp.read()
         except (IOError, OSError):
             rawconfig = ''
@@ -1463,14 +1463,14 @@ def config(context, key, value, edit):
         newconfig = click.edit(text=rawconfig, extension='.ini')
 
         if newconfig:
-            safe_save(watson.config_file, newconfig)
+            safe_save(record.config_file, newconfig)
 
         try:
-            watson.config = None
-            watson.config  # triggers reloading config from file
-        except _watson.ConfigurationError as exc:
-            watson.config = wconfig
-            watson.save()
+            record.config = None
+            record.config  # triggers reloading config from file
+        except _record.ConfigurationError as exc:
+            record.config = wconfig
+            record.save()
             raise click.ClickException(style('error', str(exc)))
         return
 
@@ -1500,38 +1500,38 @@ def config(context, key, value, edit):
             wconfig.add_section(section)
 
         wconfig.set(section, option, value)
-        watson.config = wconfig
-        watson.save()
+        record.config = wconfig
+        record.save()
 
 
 @cli.command()
 @click.pass_obj
-@catch_watson_error
-def sync(watson):
+@catch_record_error
+def sync(record):
     """
     Get the frames from the server and push the new ones.
 
     The URL of the server and the User Token must be defined via the
-    `watson config` command.
+    `record config` command.
 
     Example:
 
     \b
-    $ watson config backend.url http://localhost:4242
-    $ watson config backend.token 7e329263e329
-    $ watson sync
+    $ rec config backend.url http://localhost:4242
+    $ rec config backend.token 7e329263e329
+    $ rec sync
     Received 42 frames from the server
     Pushed 23 frames to the server
     """
     last_pull = arrow.utcnow()
-    pulled = watson.pull()
+    pulled = record.pull()
     click.echo("Received {} frames from the server".format(len(pulled)))
 
-    pushed = watson.push(last_pull)
+    pushed = record.push(last_pull)
     click.echo("Pushed {} frames to the server".format(len(pushed)))
 
-    watson.last_sync = arrow.utcnow()
-    watson.save()
+    record.last_sync = arrow.utcnow()
+    record.save()
 
 
 @cli.command()
@@ -1540,8 +1540,8 @@ def sync(watson):
               help="If specified, then the merge will automatically "
               "be performed.")
 @click.pass_obj
-@catch_watson_error
-def merge(watson, frames_with_conflict, force):
+@catch_record_error
+def merge(record, frames_with_conflict, force):
     """
     Perform a merge of the existing frames with a conflicting frames file.
 
@@ -1560,7 +1560,7 @@ def merge(watson, frames_with_conflict, force):
     Example:
 
     \b
-    $ watson merge frames-with-conflicts
+    $ rec merge frames-with-conflicts
     120 frames will be left unchanged
     12  frames will be merged
     3   frame conflicts need to be resolved
@@ -1571,7 +1571,7 @@ def merge(watson, frames_with_conflict, force):
     Example:
 
     \b
-    $ watson merge frames-with-conflicts --force
+    $ rec merge frames-with-conflicts --force
     120 frames will be left unchanged
     12  frames will be merged
     3   frame conflicts need to be resolved
@@ -1598,8 +1598,8 @@ def merge(watson, frames_with_conflict, force):
     > }
     Select the frame you want to keep: left or right? (L/r)
     """
-    original_frames = watson.frames
-    conflicting, merging = watson.merge_report(frames_with_conflict)
+    original_frames = record.frames
+    conflicting, merging = record.merge_report(frames_with_conflict)
 
     # find the length of the largest returned list, then get the number of
     # digits of this length
@@ -1683,9 +1683,9 @@ def merge(watson, frames_with_conflict, force):
         original_frames.add(project, start, stop, tags=tags, id=id,
                             updated_at=updated_at)
 
-    watson.frames = original_frames
-    watson.frames.changed = True
-    watson.save()
+    record.frames = original_frames
+    record.frames.changed = True
+    record.save()
 
 
 @cli.command()
@@ -1694,28 +1694,28 @@ def merge(watson, frames_with_conflict, force):
 @click.argument('old_name', required=True, shell_complete=get_rename_name)
 @click.argument('new_name', required=True, shell_complete=get_rename_name)
 @click.pass_obj
-@catch_watson_error
-def rename(watson, rename_type, old_name, new_name):
+@catch_record_error
+def rename(record, rename_type, old_name, new_name):
     """
     Rename a project or tag.
 
     Example:
 
     \b
-    $ watson rename project read-python-intro learn-python
+    $ rec rename project read-python-intro learn-python
     Renamed project "read-python-intro" to "learn-python"
-    $ watson rename tag company-meeting meeting
+    $ rec rename tag company-meeting meeting
     Renamed tag "company-meeting" to "meeting"
 
     """
     if rename_type == 'tag':
-        watson.rename_tag(old_name, new_name)
+        record.rename_tag(old_name, new_name)
         click.echo('Renamed tag "{}" to "{}"'.format(
                         style('tag', old_name),
                         style('tag', new_name)
                    ))
     elif rename_type == 'project':
-        watson.rename_project(old_name, new_name)
+        record.rename_project(old_name, new_name)
         click.echo('Renamed project "{}" to "{}"'.format(
                         style('project', old_name),
                         style('project', new_name)

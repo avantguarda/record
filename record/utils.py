@@ -11,38 +11,38 @@ from io import StringIO
 import click
 import arrow
 
-import watson as _watson
+import record as _record
 from .fullmoon import get_last_full_moon
 
 from click.exceptions import UsageError
 
 
-def create_watson():
-    return _watson.Watson(config_dir=os.environ.get('WATSON_DIR'))
+def create_record():
+    return _record.Record(config_dir=os.environ.get('RECORD_DIR'))
 
 
-def confirm_project(project, watson_projects):
+def confirm_project(project, record_projects):
     """
     Ask user to confirm creation of a new project
     'project' must be a string
-    'watson_projects' must be an interable.
+    'record_projects' must be an interable.
     Returns True on accept and raises click.exceptions.Abort on reject
     """
-    if project not in watson_projects:
+    if project not in record_projects:
         msg = ("Project '%s' does not exist yet. Create it?"
                % style('project', project))
         click.confirm(msg, abort=True)
     return True
 
 
-def confirm_tags(tags, watson_tags):
+def confirm_tags(tags, record_tags):
     """
     Ask user to confirm creation of new tags (each separately)
-    Both 'tags' and 'watson_tags" must be iterables.
+    Both 'tags' and 'record_tags" must be iterables.
     Returns True if all accepted and raises click.exceptions.Abort on reject
     """
     for tag in tags:
-        if tag not in watson_tags:
+        if tag not in record_tags:
             msg = "Tag '%s' does not exist yet. Create it?" % style('tag', tag)
             click.confirm(msg, abort=True)
     return True
@@ -127,7 +127,7 @@ def options(opt_list):
     return value_proc
 
 
-def get_frame_from_argument(watson, arg):
+def get_frame_from_argument(record, arg):
     """
     Get a frame from a command line argument which can either be a
     position index (-1) or a frame id.
@@ -138,7 +138,7 @@ def get_frame_from_argument(watson, arg):
     try:
         index = int(arg)
         if index < 0:
-            return watson.frames[index]
+            return record.frames[index]
     except IndexError:
         raise click.ClickException(
             style('error', "No frame found for index {}.".format(arg))
@@ -148,7 +148,7 @@ def get_frame_from_argument(watson, arg):
 
     # if we didn't find a frame by position, we try by id
     try:
-        return watson.frames[arg]
+        return record.frames[arg]
     except KeyError:
         raise click.ClickException("{} {}.".format(
             style('error', "No frame found with id"),
@@ -348,7 +348,7 @@ def build_csv(entries):
 
 def flatten_report_for_csv(report):
     """
-    Flattens the data structure returned by `watson.report()` for a csv export.
+    Flattens the data structure returned by `record.report()` for a csv export.
 
     Dates are formatted in a way that Excel (default csv module dialect) can
     handle them (i.e. YYYY-MM-DD HH:mm:ss).

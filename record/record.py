@@ -14,15 +14,15 @@ from .utils import deduplicate, make_json_writer, safe_save, sorted_groupby
 from .version import version as __version__  # noqa
 
 
-class WatsonError(RuntimeError):
+class RecordError(RuntimeError):
     pass
 
 
-class ConfigurationError(CFGParserError, WatsonError):
+class ConfigurationError(CFGParserError, RecordError):
     pass
 
 
-class Watson(object):
+class Record(object):
     def __init__(self, **kwargs):
         """
         :param frames: If given, should be a list representing the
@@ -48,7 +48,7 @@ class Watson(object):
         self._config_changed = False
 
         self._dir = (kwargs.pop('config_dir', None) or
-                     click.get_app_dir('watson'))
+                     click.get_app_dir('record'))
 
         self.config_file = os.path.join(self._dir, 'config')
         self.frames_file = os.path.join(self._dir, 'frames')
@@ -82,11 +82,11 @@ class Watson(object):
             if os.path.getsize(filename) == 0:
                 return type()
             else:
-                raise WatsonError(
+                raise RecordError(
                     "Invalid JSON file {}: {}".format(filename, e)
                 )
         except Exception as e:
-            raise WatsonError(
+            raise RecordError(
                 "Unexpected error while loading JSON file {}: {}".format(
                     filename, e
                 )
@@ -106,7 +106,7 @@ class Watson(object):
     @property
     def config(self):
         """
-        Return Watson's config as a ConfigParser object.
+        Return Record's config as a ConfigParser object.
         """
         if not self._config:
             try:
@@ -160,7 +160,7 @@ class Watson(object):
                 safe_save(self.last_sync_file,
                           make_json_writer(self._format_date, self.last_sync))
         except OSError as e:
-            raise WatsonError(
+            raise RecordError(
                 "Impossible to write {}: {}".format(e.filename, e)
             )
 
@@ -235,9 +235,9 @@ class Watson(object):
 
     def add(self, project, from_date, to_date, tags):
         if not project:
-            raise WatsonError("No project given.")
+            raise RecordError("No project given.")
         if from_date > to_date:
-            raise WatsonError("Task cannot end before it starts.")
+            raise RecordError("Task cannot end before it starts.")
 
         default_tags = self.config.getlist('default_tags', project)
         tags = (tags or []) + default_tags
@@ -248,7 +248,7 @@ class Watson(object):
     def start(self, project, tags=None, restart=False, start_at=None,
               gap=True):
         if self.is_started:
-            raise WatsonError(
+            raise RecordError(
                 "Project {} is already started.".format(
                     self.current['project']
                 )
@@ -265,10 +265,10 @@ class Watson(object):
             # and previous frames exist
             stop_of_prev_frame = self.frames[-1].stop
             if start_at < stop_of_prev_frame:
-                raise WatsonError('Task cannot start before the previous task '
+                raise RecordError('Task cannot start before the previous task '
                                   'ends.')
         if start_at > arrow.now():
-            raise WatsonError('Task cannot start in the future.')
+            raise RecordError('Task cannot start in the future.')
 
         new_frame = {'project': project, 'tags': deduplicate(tags)}
         new_frame['start'] = start_at
@@ -280,7 +280,7 @@ class Watson(object):
 
     def stop(self, stop_at=None):
         if not self.is_started:
-            raise WatsonError("No project started.")
+            raise RecordError("No project started.")
 
         old = self.current
 
@@ -292,9 +292,9 @@ class Watson(object):
             # outdated if defined using a default argument.
             stop_at = arrow.now()
         if old['start'] > stop_at:
-            raise WatsonError('Task cannot end before it starts.')
+            raise RecordError('Task cannot end before it starts.')
         if stop_at > arrow.now():
-            raise WatsonError('Task cannot end in the future.')
+            raise RecordError('Task cannot end in the future.')
 
         frame = self.frames.add(
             old['project'], old['start'], stop_at, tags=old['tags']
@@ -305,7 +305,7 @@ class Watson(object):
 
     def cancel(self):
         if not self.is_started:
-            raise WatsonError("No project started.")
+            raise RecordError("No project started.")
 
         old_current = self.current
         self.current = None
@@ -350,7 +350,7 @@ class Watson(object):
         return dest, headers
 
     def _get_remote_projects(self):
-        # import when required in order to reduce watson response time (#312)
+        # import when required in order to reduce record response time (#312)
         import requests
         if not hasattr(self, '_remote_projects'):
             dest, headers = self._get_request_info('projects')
@@ -361,9 +361,9 @@ class Watson(object):
 
                 self._remote_projects = response.json()
             except requests.ConnectionError:
-                raise WatsonError("Unable to reach the server.")
+                raise RecordError("Unable to reach the server.")
             except AssertionError:
-                raise WatsonError(
+                raise RecordError(
                     "An error occurred with the remote "
                     "server: {}".format(response.json())
                 )
@@ -380,9 +380,9 @@ class Watson(object):
             )
             assert response.status_code == 200
         except requests.ConnectionError:
-            raise WatsonError("Unable to reach the server.")
+            raise RecordError("Unable to reach the server.")
         except AssertionError:
-            raise WatsonError(
+            raise RecordError(
                 "An error occurred with the remote "
                 "server: {}".format(response.json())
             )
@@ -420,9 +420,9 @@ class Watson(object):
             response = requests.post(dest, json.dumps(frames), headers=headers)
             assert response.status_code == 201
         except requests.ConnectionError:
-            raise WatsonError("Unable to reach the server.")
+            raise RecordError("Unable to reach the server.")
         except AssertionError:
-            raise WatsonError(
+            raise RecordError(
                 "An error occurred with the remote server (status: {}). "
                 "Response was:\n{}".format(
                     response.status_code,
@@ -466,14 +466,14 @@ class Watson(object):
             from_ = start_time
 
         if not self._validate_report_options(projects, ignore_projects):
-            raise WatsonError(
+            raise RecordError(
                 "given projects can't be ignored at the same time")
 
         if not self._validate_report_options(tags, ignore_tags):
-            raise WatsonError("given tags can't be ignored at the same time")
+            raise RecordError("given tags can't be ignored at the same time")
 
         if from_ > to:
-            raise WatsonError("'from' must be anterior to 'to'")
+            raise RecordError("'from' must be anterior to 'to'")
 
         if current is None:
             current = self.config.getboolean('options', 'report_current')
@@ -551,7 +551,7 @@ class Watson(object):
     def rename_project(self, old_project, new_project):
         """Rename a project in all affected frames."""
         if old_project not in self.projects:
-            raise WatsonError('Project "%s" does not exist' % old_project)
+            raise RecordError('Project "%s" does not exist' % old_project)
 
         updated_at = arrow.utcnow()
         # rename project
@@ -568,7 +568,7 @@ class Watson(object):
     def rename_tag(self, old_tag, new_tag):
         """Rename a tag in all affected frames."""
         if old_tag not in self.tags:
-            raise WatsonError('Tag "%s" does not exist' % old_tag)
+            raise RecordError('Tag "%s" does not exist' % old_tag)
 
         updated_at = arrow.utcnow()
         # rename tag

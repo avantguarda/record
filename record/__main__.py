@@ -1,3 +1,3 @@
-from watson import cli
+from record import cli
 
 cli.cli()

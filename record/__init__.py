@@ -1,4 +1,4 @@
-from .watson import __version__  # noqa
-from .watson import Watson, WatsonError
+from .record import __version__  # noqa
+from .record import Record, RecordError
 
-__all__ = ['Watson', 'WatsonError']
+__all__ = ['Record', 'RecordError']

@@ -3,7 +3,7 @@
 import arrow
 import pytest
 
-from watson.fullmoon import get_last_full_moon
+from record.fullmoon import get_last_full_moon
 
 
 def test_with_known_date():

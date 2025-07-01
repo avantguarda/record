@@ -5,15 +5,15 @@ import random
 import os
 import sys
 
-from watson import Watson
+from record import Record
 
-if not os.environ.get('WATSON_DIR'):
+if not os.environ.get('RECORD_DIR'):
     sys.exit(
-        "This script will corrupt Watson's data, please set the WATSON_DIR "
+        "This script will corrupt Record's data, please set the RECORD_DIR "
         "environment variable to safely use it for development purpose."
     )
 
-watson = Watson(config_dir=os.environ.get('WATSON_DIR'),
+record = Record(config_dir=os.environ.get('RECORD_DIR'),
                 frames=None,
                 current=None)
 
@@ -36,7 +36,7 @@ for date in arrow.Arrow.range('day', now.shift(months=-1), now):
 
     while start.hour < random.randint(16, 19):
         project, tags = random.choice(projects)
-        frame = watson.frames.add(
+        frame = record.frames.add(
             project,
             start,
             start.shift(seconds=random.randint(60, 4 * 60 * 60)),
@@ -44,4 +44,4 @@ for date in arrow.Arrow.range('day', now.shift(months=-1), now):
         )
         start = frame.stop.shift(seconds=random.randint(0, 1 * 60 * 60))
 
-watson.save()
+record.save()
