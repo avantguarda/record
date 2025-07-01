@@ -21,7 +21,6 @@ dev = [
     "pytest-datafiles>=3.0.0",
     "pytest-mock>=3.14.1",
     "pytest-runner>=6.0.1",
-    "tox>=4.27.0",
     "twine>=6.1.0",
     "wheel>=0.45.1"
 ]
