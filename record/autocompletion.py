@@ -1,13 +1,6 @@
 from .utils import create_record, parse_tags
 
 
-def _bypass_click_bug_to_ensure_record(ctx):
-    # When pallets/click#942 is fixed, this won't be needed...
-    if ctx.obj is None:
-        ctx.obj = create_record()
-    return ctx.obj
-
-
 def get_project_or_task_completion(ctx, args, incomplete):
     """Function to autocomplete either organisations or tasks, depending on the
        shape of the current argument."""
@@ -45,8 +38,6 @@ def get_project_or_task_completion(ctx, args, incomplete):
         for cur_suggestion in tag_suggestions:
             yield "+{cur_suggestion}".format(cur_suggestion=cur_suggestion)
 
-    _bypass_click_bug_to_ensure_record(ctx)
-
     project_is_completed = any(
         tok.startswith("+") for tok in args + [incomplete]
     )
@@ -61,7 +52,7 @@ def get_project_or_task_completion(ctx, args, incomplete):
 
 def get_projects(ctx, args, incomplete):
     """Function to return all projects matching the prefix."""
-    record = _bypass_click_bug_to_ensure_record(ctx)
+    record = ctx.obj
     for cur_project in record.projects:
         if cur_project.startswith(incomplete):
             yield cur_project
@@ -97,7 +88,7 @@ def get_rename_types(ctx, args, incomplete):
 
 def get_tags(ctx, args, incomplete):
     """Function to return all tags matching the prefix."""
-    record = _bypass_click_bug_to_ensure_record(ctx)
+    record = ctx.obj
     for cur_tag in record.tags:
         if cur_tag.startswith(incomplete):
             yield cur_tag
@@ -110,7 +101,7 @@ def get_frames(ctx, args, incomplete):
     This function returns all frame IDs that match the given prefix in a
     generator. If no ID matches the prefix, it returns the empty generator.
     """
-    record = _bypass_click_bug_to_ensure_record(ctx)
+    record = ctx.obj
 
     for cur_frame in record.frames:
         yield_candidate = cur_frame.id
