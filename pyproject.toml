@@ -16,8 +16,6 @@ dependencies = [
 [dependency-groups]
 dev = [
     "flake8>=7.3.0",
-    "mkdocs>=1.6.1",
-    "mkdocs-bootswatch>=1.1",
     "py>=1.11.0",
     "pytest>=8.4.1",
     "pytest-datafiles>=3.0.0",
