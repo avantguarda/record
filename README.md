@@ -47,7 +47,7 @@ rec
 ```
 
 ## Acknowledgements
-Every great tool has a story. Ours begins with `watson` time tracker, created by [Jazzband](https://jazzband.co/). It was a powerful, elegant solution that many of us came to rely on.
+Every great tool has a story. Ours begins with `watson` time tracker, created by [TailorDev](https://github.com/TailorDev), currently owned by [Jazzband](https://jazzband.co/). It was a powerful, elegant solution that many of us came to rely on.
 
 After nearly three years of inactivity on the [original project](https://github.com/jazzband/Watson/), we wanted to ensure its legacy would not only survive but thrive. Record was created to carry the torch forward.
 
